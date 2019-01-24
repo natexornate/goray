@@ -9,5 +9,5 @@ import (
 func main() {
 	fmt.Printf("Hello, World!")
 
-	goray.Render()
+	goray.Scene()
 }
