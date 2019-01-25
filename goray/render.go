@@ -34,18 +34,31 @@ func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, V
 
 var background = Vec3f{0.2, 0.7, 0.8}
 
-func castRay(orig, dir Vec3f, spheres []Sphere, lights []light) Vec3f {
+func castRay(orig, dir Vec3f, spheres []Sphere, lights []light, depth uint) Vec3f {
+	if depth > 4 {
+		return background // Background
+	}
+
 	intersect, material, point, N := sceneIntersect(orig, dir, spheres)
 	if !intersect {
 		return background // Background
 	}
+
+	Nscaled := N.mult(1e-3)
+	reflectDir := dir.reflect(N).normalize()
+	var reflectOrig Vec3f
+	if reflectDir.dot(N) < 0 {
+		reflectOrig = point.subtract(Nscaled)
+	} else {
+		reflectOrig = point.add(Nscaled)
+	}
+	reflectColor := castRay(reflectOrig, reflectDir, spheres, lights, depth+1)
 
 	var diffuseLightIntensity, specularLightIntensity float64
 	for _, l := range lights {
 		lightDir := l.position.subtract(point).normalize()
 		lightDistance := l.position.subtract(point).norm()
 
-		Nscaled := N.mult(1e-3)
 		var shadowOrig Vec3f
 		if lightDir.dot(N) < 0 {
 			shadowOrig = point.subtract(Nscaled)
@@ -72,8 +85,9 @@ func castRay(orig, dir Vec3f, spheres []Sphere, lights []light) Vec3f {
 
 	onesVec := Vec3f{1., 1., 1.}
 	specularColorComponent := onesVec.mult(specularLightIntensity).mult(material.albedo[1])
+	reflectedColorComponent := reflectColor.mult(material.albedo[2])
 
-	return diffuseColor.add(specularColorComponent)
+	return diffuseColor.add(specularColorComponent).add(reflectedColorComponent)
 }
 
 func render(spheres []Sphere, lights []light) {
@@ -99,7 +113,7 @@ func render(spheres []Sphere, lights []light) {
 			dirY := -(float64(j) + 0.5) + float64(height)/2.
 			dirZ := -height / (2. * math.Tan(fov/2.))
 			dir := Vec3f{dirX, dirY, dirZ}.normalize()
-			framebuffer[i+j*width] = castRay(orig, dir, spheres, lights)
+			framebuffer[i+j*width] = castRay(orig, dir, spheres, lights, 0)
 		}
 	}
 
@@ -128,14 +142,15 @@ func render(spheres []Sphere, lights []light) {
 }
 
 func Scene() {
-	ivory := Material{[2]float64{0.6, 0.3}, Vec3f{0.4, 0.4, 0.3}, 50.}
-	redRubber := Material{[2]float64{0.9, 0.1}, Vec3f{0.3, 0.1, 0.1}, 10.}
+	ivory := Material{[3]float64{0.6, 0.3, 0.1}, Vec3f{0.4, 0.4, 0.3}, 50.}
+	redRubber := Material{[3]float64{0.9, 0.1, 0.}, Vec3f{0.3, 0.1, 0.1}, 10.}
+	mirror := Material{[3]float64{0.0, 10.0, 0.8}, Vec3f{1.0, 1.0, 1.0}, 1425.}
 
 	var spheres []Sphere
 	spheres = append(spheres, Sphere{Vec3f{-3., 0., -16.}, 2., ivory})
-	spheres = append(spheres, Sphere{Vec3f{-1., -1.5, -12.}, 2., redRubber})
+	spheres = append(spheres, Sphere{Vec3f{-1., -1.5, -12.}, 2., mirror})
 	spheres = append(spheres, Sphere{Vec3f{1.5, -0.5, -18.}, 3., redRubber})
-	spheres = append(spheres, Sphere{Vec3f{7., 5., -18.}, 4., ivory})
+	spheres = append(spheres, Sphere{Vec3f{7., 5., -18.}, 4., mirror})
 
 	var lights []light
 	lights = append(lights, light{Vec3f{-20., 20., 20.}, 1.5})
