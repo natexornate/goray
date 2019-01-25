@@ -34,3 +34,26 @@ func (v Vec3f) normalize() Vec3f {
 func (v Vec3f) reflect(N Vec3f) Vec3f {
 	return v.subtract(N.mult(2. * v.dot(N)))
 }
+
+func (v Vec3f) refract(N Vec3f, refractiveIndex float64) Vec3f {
+	cosi := -math.Max(-1., math.Min(1., v.dot(N)))
+	etai := 1.
+	etat := refractiveIndex
+	var n Vec3f
+	if cosi < 0 {
+		cosi = -cosi
+		etai, etat = etat, etai
+		n = N.mult(-1.)
+	} else {
+		n = N
+	}
+	eta := etai / etat
+	k := 1 - eta*eta*(1.-cosi*cosi)
+	var r Vec3f
+	if k < 0 {
+		r = Vec3f{}
+	} else {
+		r = v.mult(eta).add(n.mult(eta*cosi - math.Sqrt(k)))
+	}
+	return r
+}

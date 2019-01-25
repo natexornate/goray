@@ -54,6 +54,15 @@ func castRay(orig, dir Vec3f, spheres []Sphere, lights []light, depth uint) Vec3
 	}
 	reflectColor := castRay(reflectOrig, reflectDir, spheres, lights, depth+1)
 
+	refractDir := dir.refract(N, material.refractiveIndex).normalize()
+	var refractOrig Vec3f
+	if refractDir.dot(N) < 0 {
+		refractOrig = point.subtract(Nscaled)
+	} else {
+		refractOrig = point.add(Nscaled)
+	}
+	refractColor := castRay(refractOrig, refractDir, spheres, lights, depth+1)
+
 	var diffuseLightIntensity, specularLightIntensity float64
 	for _, l := range lights {
 		lightDir := l.position.subtract(point).normalize()
@@ -86,8 +95,9 @@ func castRay(orig, dir Vec3f, spheres []Sphere, lights []light, depth uint) Vec3
 	onesVec := Vec3f{1., 1., 1.}
 	specularColorComponent := onesVec.mult(specularLightIntensity).mult(material.albedo[1])
 	reflectedColorComponent := reflectColor.mult(material.albedo[2])
+	refractedColorComponent := refractColor.mult(material.albedo[3])
 
-	return diffuseColor.add(specularColorComponent).add(reflectedColorComponent)
+	return diffuseColor.add(specularColorComponent).add(reflectedColorComponent).add(refractedColorComponent)
 }
 
 func render(spheres []Sphere, lights []light) {
@@ -142,13 +152,14 @@ func render(spheres []Sphere, lights []light) {
 }
 
 func Scene() {
-	ivory := Material{[3]float64{0.6, 0.3, 0.1}, Vec3f{0.4, 0.4, 0.3}, 50.}
-	redRubber := Material{[3]float64{0.9, 0.1, 0.}, Vec3f{0.3, 0.1, 0.1}, 10.}
-	mirror := Material{[3]float64{0.0, 10.0, 0.8}, Vec3f{1.0, 1.0, 1.0}, 1425.}
+	ivory := Material{1.0, [4]float64{0.6, 0.3, 0.1, 0.0}, Vec3f{0.4, 0.4, 0.3}, 50.}
+	glass := Material{1.5, [4]float64{0.0, 0.5, 0.1, 0.8}, Vec3f{0.6, 0.7, 0.8}, 125.}
+	redRubber := Material{1.0, [4]float64{0.9, 0.1, 0.0, 0.0}, Vec3f{0.3, 0.1, 0.1}, 10.}
+	mirror := Material{1.0, [4]float64{0.0, 10.0, 0.8, 0.0}, Vec3f{1.0, 1.0, 1.0}, 1425.}
 
 	var spheres []Sphere
 	spheres = append(spheres, Sphere{Vec3f{-3., 0., -16.}, 2., ivory})
-	spheres = append(spheres, Sphere{Vec3f{-1., -1.5, -12.}, 2., mirror})
+	spheres = append(spheres, Sphere{Vec3f{-1., -1.5, -12.}, 2., glass})
 	spheres = append(spheres, Sphere{Vec3f{1.5, -0.5, -18.}, 3., redRubber})
 	spheres = append(spheres, Sphere{Vec3f{7., 5., -18.}, 4., mirror})
 

@@ -11,7 +11,8 @@ type Sphere struct {
 }
 
 type Material struct {
-	albedo           [3]float64
+	refractiveIndex  float64
+	albedo           [4]float64
 	diffuseColor     Vec3f
 	specularExponent float64
 }
