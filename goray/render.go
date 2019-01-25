@@ -9,16 +9,39 @@ import (
 	"time"
 )
 
-func castRay(orig, dir Vec3f, sphere Sphere) Vec3f {
-	intersect := sphere.rayIntersect(orig, dir)
-	if !intersect {
-		return Vec3f{0.2, 0.7, 0.8} // Background
+func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, Vec3f) {
+	spheresDist := math.MaxFloat64
+	var hit, N Vec3f
+	var material Material
+
+	for _, s := range spheres {
+		sphereIntersect, distance := s.rayIntersect(orig, dir)
+		if sphereIntersect && distance < spheresDist {
+			spheresDist = distance
+			hit = vAdd(orig, vMult(dir, distance))
+			N = vSubtract(hit, s.center).normalize()
+			material = s.material
+		}
 	}
 
-	return Vec3f{0.4, 0.4, 0.3}
+	return (spheresDist < 1000), material, hit, N
 }
 
-func render(sphere Sphere) {
+var background = Vec3f{0.2, 0.7, 0.8}
+
+func castRay(orig, dir Vec3f, spheres []Sphere) Vec3f {
+	intersect, material, point, N := sceneIntersect(orig, dir, spheres)
+	if !intersect {
+		return background // Background
+	}
+
+	_ = N
+	_ = point
+
+	return material.diffuseColor
+}
+
+func render(spheres []Sphere) {
 	const width = 1024
 	const height = 768
 	const fov = math.Pi / 3.
@@ -41,7 +64,7 @@ func render(sphere Sphere) {
 			dirY := -(float64(j) + 0.5) + float64(height)/2.
 			dirZ := -height / (2. * math.Tan(fov/2.))
 			dir := Vec3f{dirX, dirY, dirZ}.normalize()
-			framebuffer[i+j*width] = castRay(orig, dir, sphere)
+			framebuffer[i+j*width] = castRay(orig, dir, spheres)
 		}
 	}
 
@@ -66,10 +89,17 @@ func render(sphere Sphere) {
 }
 
 func Scene() {
-	s := Sphere{Vec3f{-3., 0., -16.}, 2.}
+	ivory := Material{Vec3f{0.4, 0.4, 0.3}}
+	redRubber := Material{Vec3f{0.3, 0.1, 0.1}}
+
+	var spheres []Sphere
+	spheres = append(spheres, Sphere{Vec3f{-3., 0., -16.}, 2., ivory})
+	spheres = append(spheres, Sphere{Vec3f{-1., -1.5, -12.}, 2., redRubber})
+	spheres = append(spheres, Sphere{Vec3f{1.5, -0.5, -18.}, 3., redRubber})
+	spheres = append(spheres, Sphere{Vec3f{7., 5., -18.}, 4., ivory})
 
 	renderStart := time.Now()
-	render(s)
+	render(spheres)
 	renderElapsed := time.Since(renderStart)
 	fmt.Printf("Render took %s\n", renderElapsed)
 }

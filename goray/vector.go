@@ -10,6 +10,10 @@ func vSubtract(a, b Vec3f) Vec3f {
 	return Vec3f{a.x - b.x, a.y - b.y, a.z - b.z}
 }
 
+func vAdd(a, b Vec3f) Vec3f {
+	return Vec3f{a.x + b.x, a.y + b.y, a.z + b.z}
+}
+
 func vDot(a, b Vec3f) float64 {
 	return a.x*b.x + a.y*b.y + a.z*b.z
 }
