@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+type light struct {
+	position  Vec3f
+	intensity float64
+}
+
 func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, Vec3f) {
 	spheresDist := math.MaxFloat64
 	var hit, N Vec3f
@@ -29,19 +34,22 @@ func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, V
 
 var background = Vec3f{0.2, 0.7, 0.8}
 
-func castRay(orig, dir Vec3f, spheres []Sphere) Vec3f {
+func castRay(orig, dir Vec3f, spheres []Sphere, lights []light) Vec3f {
 	intersect, material, point, N := sceneIntersect(orig, dir, spheres)
 	if !intersect {
 		return background // Background
 	}
 
-	_ = N
-	_ = point
+	var diffuseLightIntensity float64
+	for _, l := range lights {
+		lightDir := vSubtract(l.position, point).normalize()
+		diffuseLightIntensity += l.intensity * math.Max(0., vDot(lightDir, N))
+	}
 
-	return material.diffuseColor
+	return vMult(material.diffuseColor, diffuseLightIntensity)
 }
 
-func render(spheres []Sphere) {
+func render(spheres []Sphere, lights []light) {
 	const width = 1024
 	const height = 768
 	const fov = math.Pi / 3.
@@ -64,7 +72,7 @@ func render(spheres []Sphere) {
 			dirY := -(float64(j) + 0.5) + float64(height)/2.
 			dirZ := -height / (2. * math.Tan(fov/2.))
 			dir := Vec3f{dirX, dirY, dirZ}.normalize()
-			framebuffer[i+j*width] = castRay(orig, dir, spheres)
+			framebuffer[i+j*width] = castRay(orig, dir, spheres, lights)
 		}
 	}
 
@@ -98,8 +106,11 @@ func Scene() {
 	spheres = append(spheres, Sphere{Vec3f{1.5, -0.5, -18.}, 3., redRubber})
 	spheres = append(spheres, Sphere{Vec3f{7., 5., -18.}, 4., ivory})
 
+	var lights []light
+	lights = append(lights, light{Vec3f{-20., 20., 20.}, 1.5})
+
 	renderStart := time.Now()
-	render(spheres)
+	render(spheres, lights)
 	renderElapsed := time.Since(renderStart)
 	fmt.Printf("Render took %s\n", renderElapsed)
 }
