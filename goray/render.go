@@ -43,6 +43,25 @@ func castRay(orig, dir Vec3f, spheres []Sphere, lights []light) Vec3f {
 	var diffuseLightIntensity, specularLightIntensity float64
 	for _, l := range lights {
 		lightDir := l.position.subtract(point).normalize()
+		lightDistance := l.position.subtract(point).norm()
+
+		Nscaled := N.mult(1e-3)
+		var shadowOrig Vec3f
+		if lightDir.dot(N) < 0 {
+			shadowOrig = point.subtract(Nscaled)
+		} else {
+			shadowOrig = point.add(Nscaled)
+		}
+
+		shadowIntersect, shadMaterial, shadowPoint, shadowN := sceneIntersect(shadowOrig, lightDir, spheres)
+		if shadowIntersect && shadowPoint.subtract(shadowOrig).norm() < lightDistance {
+			continue
+		}
+
+		_ = shadMaterial
+		_ = shadowPoint
+		_ = shadowN
+
 		diffuseLightIntensity += l.intensity * math.Max(0., lightDir.dot(N))
 		reflectedLight := lightDir.mult(-1.).reflect(N).mult(-1.).dot(dir)
 		intensity := math.Pow(math.Max(0., reflectedLight), material.specularExponent)
