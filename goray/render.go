@@ -23,8 +23,8 @@ func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, V
 		sphereIntersect, distance := s.rayIntersect(orig, dir)
 		if sphereIntersect && distance < spheresDist {
 			spheresDist = distance
-			hit = vAdd(orig, vMult(dir, distance))
-			N = vSubtract(hit, s.center).normalize()
+			hit = orig.add(dir.mult(distance))
+			N = hit.subtract(s.center).normalize()
 			material = s.material
 		}
 	}
@@ -40,13 +40,21 @@ func castRay(orig, dir Vec3f, spheres []Sphere, lights []light) Vec3f {
 		return background // Background
 	}
 
-	var diffuseLightIntensity float64
+	var diffuseLightIntensity, specularLightIntensity float64
 	for _, l := range lights {
-		lightDir := vSubtract(l.position, point).normalize()
-		diffuseLightIntensity += l.intensity * math.Max(0., vDot(lightDir, N))
+		lightDir := l.position.subtract(point).normalize()
+		diffuseLightIntensity += l.intensity * math.Max(0., lightDir.dot(N))
+		reflectedLight := lightDir.mult(-1.).reflect(N).mult(-1.).dot(dir)
+		intensity := math.Pow(math.Max(0., reflectedLight), material.specularExponent)
+		specularLightIntensity += intensity * l.intensity
 	}
 
-	return vMult(material.diffuseColor, diffuseLightIntensity)
+	diffuseColor := material.diffuseColor.mult(diffuseLightIntensity).mult(material.albedo[0])
+
+	onesVec := Vec3f{1., 1., 1.}
+	specularColorComponent := onesVec.mult(specularLightIntensity).mult(material.albedo[1])
+
+	return diffuseColor.add(specularColorComponent)
 }
 
 func render(spheres []Sphere, lights []light) {
@@ -80,6 +88,10 @@ func render(spheres []Sphere, lights []light) {
 
 	for i, v := range framebuffer {
 		off := i * 4
+		max := math.Max(v.x, math.Max(v.y, v.z))
+		if max > 1. {
+			v = v.mult(1. / max)
+		}
 		im.Pix[off] = uint8(v.x * 255.)
 		im.Pix[off+1] = uint8(v.y * 255.)
 		im.Pix[off+2] = uint8(v.z * 255.)
@@ -97,8 +109,8 @@ func render(spheres []Sphere, lights []light) {
 }
 
 func Scene() {
-	ivory := Material{Vec3f{0.4, 0.4, 0.3}}
-	redRubber := Material{Vec3f{0.3, 0.1, 0.1}}
+	ivory := Material{[2]float64{0.6, 0.3}, Vec3f{0.4, 0.4, 0.3}, 50.}
+	redRubber := Material{[2]float64{0.9, 0.1}, Vec3f{0.3, 0.1, 0.1}, 10.}
 
 	var spheres []Sphere
 	spheres = append(spheres, Sphere{Vec3f{-3., 0., -16.}, 2., ivory})
@@ -108,6 +120,8 @@ func Scene() {
 
 	var lights []light
 	lights = append(lights, light{Vec3f{-20., 20., 20.}, 1.5})
+	lights = append(lights, light{Vec3f{30., 50., -25.}, 1.8})
+	lights = append(lights, light{Vec3f{30., 20., 30.}, 1.7})
 
 	renderStart := time.Now()
 	render(spheres, lights)

@@ -11,14 +11,16 @@ type Sphere struct {
 }
 
 type Material struct {
-	diffuseColor Vec3f
+	albedo           [2]float64
+	diffuseColor     Vec3f
+	specularExponent float64
 }
 
 func (s Sphere) rayIntersect(orig, dir Vec3f) (bool, float64) {
 	var dist float64
-	L := vSubtract(s.center, orig)
-	tca := vDot(L, dir)
-	d2 := vDot(L, L) - tca*tca
+	L := s.center.subtract(orig)
+	tca := L.dot(dir)
+	d2 := L.dot(L) - tca*tca
 	if d2 > (s.radius * s.radius) {
 		return false, dist
 	}
