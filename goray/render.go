@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"time"
 )
 
 func castRay(orig, dir Vec3f, sphere Sphere) Vec3f {
@@ -33,6 +34,7 @@ func render(sphere Sphere) {
 	framebuffer := [height * width]Vec3f{}
 
 	orig := Vec3f{0, 0, 0}
+
 	for j := 0; j < height; j++ {
 		for i := 0; i < width; i++ {
 			dirX := (float64(i) + 0.5) - float64(width)/2.
@@ -43,6 +45,8 @@ func render(sphere Sphere) {
 		}
 	}
 
+	start := time.Now()
+
 	for i, v := range framebuffer {
 		off := i * 4
 		im.Pix[off] = uint8(v.x * 255.)
@@ -51,11 +55,21 @@ func render(sphere Sphere) {
 		im.Pix[off+3] = 255
 	}
 
+	dataEnd := time.Now()
+	dataElapsed := time.Since(start)
+
 	png.Encode(outputFile, im)
 	outputFile.Close()
+
+	saveTime := time.Since(dataEnd)
+	fmt.Printf("Data time: %s\t save time: %s\n", dataElapsed, saveTime)
 }
 
 func Scene() {
 	s := Sphere{Vec3f{-3., 0., -16.}, 2.}
+
+	renderStart := time.Now()
 	render(s)
+	renderElapsed := time.Since(renderStart)
+	fmt.Printf("Render took %s\n", renderElapsed)
 }
