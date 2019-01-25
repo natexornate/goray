@@ -14,6 +14,10 @@ type light struct {
 	intensity float64
 }
 
+var cbLight = Material{1.0, [4]float64{1.0, 0.0, 0.0, 0.0}, Vec3f{.3, .3, .3}, 0.}
+var cbDark = Material{1.0, [4]float64{1.0, 0.0, 0.0, 0.0}, Vec3f{.3, .2, .1}, 0.}
+var zeroOneZero = Vec3f{0.0, 1.0, 0.0}
+
 func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, Vec3f) {
 	spheresDist := math.MaxFloat64
 	var hit, N Vec3f
@@ -29,7 +33,25 @@ func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, V
 		}
 	}
 
-	return (spheresDist < 1000), material, hit, N
+	checkerboardDist := math.MaxFloat64
+
+	if math.Abs(dir.y) > 1e-3 {
+		d := -(orig.y + 4) / dir.y
+		pt := orig.add(dir.mult(d))
+
+		if d > 0 && math.Abs(pt.x) < 10 && pt.z < -10 && pt.z > -30 && d < spheresDist {
+			checkerboardDist = d
+			hit = pt
+			N = zeroOneZero
+			if ((int(0.5*hit.x+1000) + int(0.5*hit.z)) & 1) == 1 {
+				material = cbLight
+			} else {
+				material = cbDark
+			}
+		}
+	}
+
+	return (math.Min(spheresDist, checkerboardDist) < 1000), material, hit, N
 }
 
 var background = Vec3f{0.2, 0.7, 0.8}
