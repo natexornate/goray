@@ -6,6 +6,8 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"runtime"
+	"sync"
 	"time"
 )
 
@@ -139,15 +141,35 @@ func render(spheres []Sphere, lights []light) {
 
 	orig := Vec3f{0, 0, 0}
 
-	for j := 0; j < height; j++ {
-		for i := 0; i < width; i++ {
-			dirX := (float64(i) + 0.5) - float64(width)/2.
-			dirY := -(float64(j) + 0.5) + float64(height)/2.
-			dirZ := -height / (2. * math.Tan(fov/2.))
-			dir := Vec3f{dirX, dirY, dirZ}.normalize()
-			framebuffer[i+j*width] = castRay(orig, dir, spheres, lights, 0)
+	nproc := runtime.NumCPU()
+	c := height / nproc
+	var wg sync.WaitGroup
+
+	for I := 0; I < nproc; I++ {
+
+		min := I * c
+		max := (I + 1) * c
+		if max > height {
+			max = (I * c) + height%c
 		}
+
+		wg.Add(1)
+		go (func(min, max int) {
+			for j := min; j < max; j++ {
+				for i := 0; i < width; i++ {
+					dirX := (float64(i) + 0.5) - float64(width)/2.
+					dirY := -(float64(j) + 0.5) + float64(height)/2.
+					dirZ := -height / (2. * math.Tan(fov/2.))
+					dir := Vec3f{dirX, dirY, dirZ}.normalize()
+					framebuffer[i+j*width] = castRay(orig, dir, spheres, lights, 0)
+				}
+			}
+			wg.Done()
+
+		})(min, max)
+
 	}
+	wg.Wait()
 
 	start := time.Now()
 
