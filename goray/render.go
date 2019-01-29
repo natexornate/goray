@@ -25,13 +25,13 @@ func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, V
 	var hit, N Vec3f
 	var material Material
 
-	for _, s := range spheres {
-		sphereIntersect, distance := s.rayIntersect(orig, dir)
+	for i := 0; i < len(spheres); i++ {
+		sphereIntersect, distance := spheres[i].rayIntersect(orig, dir)
 		if sphereIntersect && distance < spheresDist {
 			spheresDist = distance
 			hit = orig.add(dir.mult(distance))
-			N = hit.subtract(s.center).normalize()
-			material = s.material
+			N = hit.subtract(spheres[i].center).normalize()
+			material = spheres[i].material
 		}
 	}
 
