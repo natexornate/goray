@@ -1,4 +1,4 @@
-package goray
+package raytracer
 
 import "math"
 

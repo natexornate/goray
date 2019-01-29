@@ -8,7 +8,7 @@ import (
 	"runtime/pprof"
 	"runtime/trace"
 
-	"github.com/natexornate/goray/goray"
+	"github.com/natexornate/goray/raytracer"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -35,7 +35,7 @@ func main() {
 	}
 
 	fmt.Printf("Rendering Scene!\n")
-	goray.Scene()
+	raytracer.Scene()
 
 	return
 }
