@@ -3,6 +3,7 @@ package raytracer
 import (
 	"fmt"
 	"image"
+	"image/jpeg"
 	"image/png"
 	"math"
 	"os"
@@ -56,16 +57,33 @@ func sceneIntersect(orig, dir Vec3f, spheres []Sphere) (bool, Material, Vec3f, V
 	return (math.Min(spheresDist, checkerboardDist) < 1000), material, hit, N
 }
 
-var background = Vec3f{0.2, 0.7, 0.8}
+func getBackgroundPixel(dir Vec3f, bgImageData image.Image) Vec3f {
+	bounds := bgImageData.Bounds()
+	minX := bounds.Min.X
+	maxX := bounds.Max.X
 
-func castRay(orig, dir Vec3f, spheres []Sphere, lights []light, depth uint) Vec3f {
+	minY := bounds.Min.Y
+	maxY := bounds.Max.Y
+
+	dir = dir.normalize()
+
+	x := minX + int((math.Atan2(dir.z, dir.x)/(2*math.Pi)+0.5)*float64(maxX-minX))
+	y := minY + int(math.Acos(dir.y)/math.Pi*float64(maxY-minY))
+
+	r, g, b, a := bgImageData.At(x, y).RGBA()
+	_ = a
+
+	return Vec3f{float64(r>>8) / 255., float64(g>>8) / 255., float64(b>>8) / 255.}
+}
+
+func castRay(orig, dir Vec3f, spheres []Sphere, lights []light, depth uint, bgImageData image.Image) Vec3f {
 	if depth > 4 {
-		return background // Background
+		return getBackgroundPixel(dir, bgImageData) // Background
 	}
 
 	intersect, material, point, N := sceneIntersect(orig, dir, spheres)
 	if !intersect {
-		return background // Background
+		return getBackgroundPixel(dir, bgImageData) // Background
 	}
 
 	Nscaled := N.mult(1e-3)
@@ -76,7 +94,7 @@ func castRay(orig, dir Vec3f, spheres []Sphere, lights []light, depth uint) Vec3
 	} else {
 		reflectOrig = point.add(Nscaled)
 	}
-	reflectColor := castRay(reflectOrig, reflectDir, spheres, lights, depth+1)
+	reflectColor := castRay(reflectOrig, reflectDir, spheres, lights, depth+1, bgImageData)
 
 	refractDir := dir.refract(N, material.refractiveIndex).normalize()
 	var refractOrig Vec3f
@@ -85,7 +103,7 @@ func castRay(orig, dir Vec3f, spheres []Sphere, lights []light, depth uint) Vec3
 	} else {
 		refractOrig = point.add(Nscaled)
 	}
-	refractColor := castRay(refractOrig, refractDir, spheres, lights, depth+1)
+	refractColor := castRay(refractOrig, refractDir, spheres, lights, depth+1, bgImageData)
 
 	var diffuseLightIntensity, specularLightIntensity float64
 	for _, l := range lights {
@@ -137,6 +155,22 @@ func render(spheres []Sphere, lights []light) {
 		return
 	}
 
+	backgroundImageFile, err := os.Open("envmap.jpg")
+	if err != nil {
+		fmt.Printf("Can't Open background file!")
+		return
+	}
+	defer backgroundImageFile.Close()
+
+	bgImageStart := time.Now()
+	bgImageData, err := jpeg.Decode(backgroundImageFile)
+	if err != nil {
+		fmt.Printf("Can't decode background image!")
+		return
+	}
+	bgImageElapsed := time.Since(bgImageStart)
+	fmt.Printf("Took %s to decode background jpg\n", bgImageElapsed)
+
 	framebuffer := [height * width]Vec3f{}
 
 	orig := Vec3f{0, 0, 0}
@@ -161,7 +195,7 @@ func render(spheres []Sphere, lights []light) {
 					dirY := -(float64(j) + 0.5) + float64(height)/2.
 					dirZ := -height / (2. * math.Tan(fov/2.))
 					dir := Vec3f{dirX, dirY, dirZ}.normalize()
-					framebuffer[i+j*width] = castRay(orig, dir, spheres, lights, 0)
+					framebuffer[i+j*width] = castRay(orig, dir, spheres, lights, 0, bgImageData)
 				}
 			}
 			wg.Done()
