@@ -178,6 +178,7 @@ func render(spheres []Sphere, lights []light) {
 	nproc := runtime.NumCPU()
 	c := height / nproc
 	var wg sync.WaitGroup
+	castStart := time.Now()
 
 	for I := 0; I < nproc; I++ {
 
@@ -204,6 +205,7 @@ func render(spheres []Sphere, lights []light) {
 
 	}
 	wg.Wait()
+	castElapsed := time.Since(castStart)
 
 	start := time.Now()
 
@@ -226,7 +228,7 @@ func render(spheres []Sphere, lights []light) {
 	outputFile.Close()
 
 	saveTime := time.Since(dataEnd)
-	fmt.Printf("Data time: %s\t save time: %s\n", dataElapsed, saveTime)
+	fmt.Printf("Cast time: %s\tData time: %s\t save time: %s\n", castElapsed, dataElapsed, saveTime)
 }
 
 func Scene() {
